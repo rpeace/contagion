@@ -8,6 +8,7 @@ Created on Mon Mar 23 10:15:44 2015
 import pandas.io.data as web
 import pandas as pd
 import datetime
+from datetime import timedelta
 from dateutil import parser as dateparser
 
 class Collector:
@@ -16,16 +17,17 @@ class Collector:
         return
 
     def get_stock_data(self, symbol, start, end):
-        s = dateparser.parse(start)
+        s = dateparser.parse(start) - timedelta(weeks=1)
         e = dateparser.parse(end)
         f = web.DataReader(symbol, "yahoo", s, e)
         f['Return'] = pd.Series()
-        f.Return = (f.Open-f.Open.shift(1))/f.Open
-        return f
+        f.Return = (f.Close-f.Close.shift(1))/f.Close
+        return f[dateparser.parse(start):]
         
     def get_average_stock_data(self, symbols, start, end):
         stocks = {}
         s = dateparser.parse(start)
+        print type(s)
         e = dateparser.parse(end)
         for symbol in symbols:
             stocks[symbol] = web.DataReader(symbol, "yahoo", s, e)

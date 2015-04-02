@@ -59,6 +59,10 @@ class Window(QtGui.QDialog):
         self.s.setText("2")
         self.samples = QtGui.QLineEdit(self)
         self.samples.setText("5")
+        
+        self.average = QtGui.QLabel("   Average: ")
+        self.std = QtGui.QLabel("   Std: ")
+        
 
         # set the layoutcovariance
         
@@ -84,6 +88,8 @@ class Window(QtGui.QDialog):
         plotLayout = QtGui.QVBoxLayout()
         plotLayout.addWidget(self.toolbar)
         plotLayout.addWidget(self.canvas)
+        plotLayout.addWidget(self.average)
+        plotLayout.addWidget(self.std)
         
         layout = QtGui.QGridLayout()
         layout.addLayout(menuLayout,1,0)
@@ -141,7 +147,8 @@ class Window(QtGui.QDialog):
         pltdata['mean'].plot(ax=self.axes2, legend=True)
         pltdata['upperstd'].plot(ax=self.axes2, legend=True)
         pltdata['lowerstd'].plot(ax=self.axes2, legend=True)
-        
+        self.std.setText("   Std: %0.3f" % pltdata['Corr2'].std())
+        self.average.setText("   Average: %0.3f" % pltdata['Corr2'].mean())
 
         # refresh canvas
         self.canvas.draw()
