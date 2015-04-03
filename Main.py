@@ -6,6 +6,7 @@ Created on Mon Mar 23 10:43:18 2015
 """
 
 from Collector import *
+from HeadlineGrabber import *
 import pandas as pd
 
 import sys
@@ -62,14 +63,16 @@ class Window(QtGui.QDialog):
         
         self.average = QtGui.QLabel("   Average: ")
         self.std = QtGui.QLabel("   Std: ")
+        self.zscore = QtGui.QLabel(" ")
+        self.conclusion = QtGui.QLabel(" ")
         
 
         # set the layoutcovariance
         
         menuLayout = QtGui.QVBoxLayout()
-        menuLayout.addWidget(QtGui.QLabel("Symbol 1"))
+        menuLayout.addWidget(QtGui.QLabel("Symbol or market 1"))
         menuLayout.addWidget(self.symbol1)
-        menuLayout.addWidget(QtGui.QLabel("Symbol 2"))
+        menuLayout.addWidget(QtGui.QLabel("Symbol or market 2"))
         menuLayout.addWidget(self.symbol2)
         menuLayout.addWidget(QtGui.QLabel("Start date"))
         menuLayout.addWidget(self.startdate)
@@ -80,8 +83,8 @@ class Window(QtGui.QDialog):
         menuLayout.addWidget(QtGui.QLabel("Rolling correlation samples"))
         menuLayout.addWidget(self.samples)
         menuLayout.addWidget(self.noModel)
-       #menuLayout.addWidget(self.useArma)
-        menuLayout.addWidget(self.useArch)
+        #menuLayout.addWidget(self.useArma)
+        #menuLayout.addWidget(self.useArch)
         menuLayout.addWidget(self.useGarch)
         menuLayout.addWidget(self.button)
         
@@ -90,6 +93,8 @@ class Window(QtGui.QDialog):
         plotLayout.addWidget(self.canvas)
         plotLayout.addWidget(self.average)
         plotLayout.addWidget(self.std)
+        plotLayout.addWidget(self.zscore)
+        plotLayout.addWidget(self.conclusion)
         
         layout = QtGui.QGridLayout()
         layout.addLayout(menuLayout,1,0)
@@ -98,6 +103,46 @@ class Window(QtGui.QDialog):
         
         self.axes1 = self.figure.add_subplot(211)
         self.axes2 = self.figure.add_subplot(212)
+        
+    def find_high_region(self, corrData):
+        
+        topAvg = -1.0
+        topStd = -1.0
+        startDates = []
+        for date in corrData.axes[0]:
+            if date < corrData.axes[0][-1]-timedelta(days=30):
+                startDates.append(date)
+
+        
+        for date in startDates:
+            avg = corrData[date:date+timedelta(days=30)].mean()
+            std = corrData[date:date+timedelta(days=30)].std()
+            if avg-std > topAvg-topStd:
+                topAvg = avg
+                topStd = std
+                topDate = date
+
+        return (topDate, topAvg, topStd)
+        
+    def find_low_region(self, corrData):
+        
+        topAvg = -1.0
+        topStd = -1.0
+        startDates = []
+        for date in corrData.axes[0]:
+            if date < corrData.axes[0][-1]-timedelta(days=30):
+                startDates.append(date)
+
+        
+        for date in startDates:
+            avg = corrData[date:date+timedelta(days=30)].mean()
+            std = corrData[date:date+timedelta(days=30)].std()
+            if avg-std < topAvg-topStd:
+                topAvg = avg
+                topStd = std
+                topDate = date
+
+        return (topDate, topAvg, topStd)
 
     def plot(self):
         # retrieve stock data
@@ -110,20 +155,34 @@ class Window(QtGui.QDialog):
         end = self.enddate.text()
         
         pltdata = pd.DataFrame()
-        f1 = c.get_stock_data(s1,start,end)
+        if s1 == "NYSE":
+            f1 = c.get_nyse_stock_data(start, end)
+        elif s1 == "SEHK":
+            f1 = c.get_sehk_stock_data(start, end)
+        elif s1 == "LSE":
+            f1 = c.get_lse_stock_data(start, end)
+        else:
+            f1 = c.get_stock_data(s1,start,end)
         pltdata[s1] = pd.rolling_mean(f1.Return,samples)
-        f2 = c.get_stock_data(s2,start,end)
+        if s2 == "NYSE":
+            f2 = c.get_nyse_stock_data(start, end)
+        elif s2 == "SEHK":
+            f2 = c.get_sehk_stock_data(start, end)
+        elif s2 == "LSE":
+            f2 = c.get_lse_stock_data(start, end)
+        else:
+            f2 = c.get_stock_data(s2,start,end)
         pltdata[s2] = pd.rolling_mean(f2.Return,samples)
         pltdata['Corr'] = pd.rolling_corr(pltdata[s1], pltdata[s2], covsamples)
         
-        if self.useArch.isChecked():
-            am1 = arch_model(pltdata['Corr'][pd.notnull(pltdata['Corr'])], vol='ARCH', lags=5, mean="ARX")
-            res = am1.fit(iter=5)
-            pltdata['Corr2'] = res.resid
-        elif self.useGarch.isChecked():
+        if self.useGarch.isChecked():
             am = arch_model(pltdata['Corr'][pd.notnull(pltdata['Corr'])], lags=5, mean="ARX")
             res = am.fit()
             pltdata['Corr2'] = res.resid
+        #elif self.useArch.isChecked():
+        #    am1 = arch_model(pltdata['Corr'][pd.notnull(pltdata['Corr'])], vol='ARCH', lags=5, mean="ARX")
+        #    res = am1.fit(iter=5)
+        #    pltdata['Corr2'] = res.resid
         #Trying to fit an ARMA model causes an unknown lockup. Disabled for now.
         #elif self.useArma.isChecked():
         #    print "Test"
@@ -134,6 +193,26 @@ class Window(QtGui.QDialog):
         #    print pltdata['Corr2']
         else:
             pltdata['Corr2'] = pltdata['Corr']
+            
+        high_data = self.find_high_region(pltdata['Corr2'])
+        low_data = self.find_low_region(pltdata['Corr2'])
+        zscore = (high_data[1] - low_data[1]) / low_data[2]
+        
+        print "Z-score is ", zscore        
+        
+        h = HeadlineGrabber()
+        headline = h.get_headline(high_data[0].to_datetime())
+        
+        
+        if abs(zscore) > 1:
+            self.zscore.setText("Contagion found at "+str(high_data[0])+" with Z-score " + str(zscore))
+            self.conclusion.setText("Headline for article: "+headline)
+        else:
+            self.zscore.setText("No contagion found")
+            self.conclusion.setText(" ")
+            
+        
+        
     
         pltdata['mean'] = [pltdata['Corr2'].mean()]*len(pltdata['Corr2'])
         pltdata['upperstd'] = [pltdata['Corr2'].mean()+pltdata['Corr2'].std()]*len(pltdata['Corr2'])
@@ -152,6 +231,7 @@ class Window(QtGui.QDialog):
 
         # refresh canvas
         self.canvas.draw()
+        
 
 if __name__ == '__main__':
     app = QtGui.QApplication(sys.argv)
