@@ -22,6 +22,9 @@ def main():
   print("[Markets]")
   print(get_markets())
 
+  print("[Symbols]")
+  print(get_symbols(""))
+
 # Get Stock Data
 def get_stocks(exchange, symbol, start, end, region, country, sector):
   
@@ -121,7 +124,7 @@ def get_regions():
     if connection:
       connection.close()
 
-  return [ seq[0] for seq in rows ]
+  return sorted([ seq[0] for seq in rows ])
 
 # Get Countries
 def get_countries(region):
@@ -160,7 +163,7 @@ def get_countries(region):
     if connection:
       connection.close()
 
-  return [ seq[0] for seq in rows ]
+  return sorted([ seq[0] for seq in rows ])
 
 # Get Sectors
 def get_sectors():
@@ -192,7 +195,7 @@ def get_sectors():
     if connection:
       connection.close()
 
-  return [ seq[0] for seq in rows ]
+  return sorted([ seq[0] for seq in rows ])
 
 # Get Markets
 def get_markets():
@@ -224,7 +227,46 @@ def get_markets():
     if connection:
       connection.close()
 
-  return [ seq[0] for seq in rows ]
+  return sorted([ seq[0] for seq in rows ])
+
+# Get Symbols
+def get_symbols(market):
+
+  query = "SELECT symbol FROM Company INNER JOIN Exchange ON Company.exchangeID = Exchange.exchangeID"
+
+  # Region
+  if market != "":
+    query += " WHERE Exchange.exchange = '" + market + "'"
+
+  # End Query
+  query += ";"
+
+  # Query Database
+  try:
+
+    # Connection
+    connection = _mysql.connect('99.254.1.29', 'rpeace', '3Q5CmaE7', 'Stocks')
+
+    # Query
+    connection.query(query)
+
+    # Result
+    result = connection.use_result()
+
+    # Rows
+    rows = result.fetch_row(result.num_rows())
+
+  # Query Failed
+  except _mysql.Error, e:
+    print "Error %d: %s" % (e.args[0], e.args[1])
+    sys.exit(1)
+
+  # Close Connection
+  finally:
+    if connection:
+      connection.close()
+
+  return sorted(list(set([ seq[0] for seq in rows ])))
 
 # Execute Main
 if __name__ == "__main__":
