@@ -191,23 +191,6 @@ def get_sectors():
 
   return [ seq[0] for seq in rows ]
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Execute Main
 if __name__ == "__main__":
 	main()

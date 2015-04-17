@@ -5,6 +5,8 @@ Created on Fri Apr  3 13:01:05 2015
 @author: rob
 """
 
+import random
+
 from bs4 import BeautifulSoup
 import urllib2
 import datetime
