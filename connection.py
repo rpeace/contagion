@@ -19,6 +19,9 @@ def main():
   print("[SECTORS]")  
   print(get_sectors())
 
+  print("[Markets]")
+  print(get_markets())
+
 # Get Stock Data
 def get_stocks(exchange, symbol, start, end, region, country, sector):
   
@@ -191,22 +194,37 @@ def get_sectors():
 
   return [ seq[0] for seq in rows ]
 
+# Get Markets
+def get_markets():
 
+  query = "SELECT exchangeCode FROM Exchange;"
 
+  # Query Database
+  try:
 
+    # Connection
+    connection = _mysql.connect('99.254.1.29', 'rpeace', '3Q5CmaE7', 'Stocks')
 
+    # Query
+    connection.query(query)
 
+    # Result
+    result = connection.use_result()
 
+    # Rows
+    rows = result.fetch_row(result.num_rows())
 
+  # Query Failed
+  except _mysql.Error, e:
+    print "Error %d: %s" % (e.args[0], e.args[1])
+    sys.exit(1)
 
+  # Close Connection
+  finally:
+    if connection:
+      connection.close()
 
-
-
-
-
-
-
-
+  return [ seq[0] for seq in rows ]
 
 # Execute Main
 if __name__ == "__main__":
