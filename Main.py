@@ -242,6 +242,14 @@ class Window(QtGui.QDialog):
     def plot(self):
         # retrieve stock data
         c = Collector()
+        region1 = self.region1.currentText()
+        region2 = self.region2.currentText()
+        market1 = self.market1.currentText()
+        market2 = self.market2.currentText()
+        sector1 = self.sector1.currentText()
+        sector2 = self.sector2.currentText()
+        country1 = self.country1.currentText()
+        country2 = self.country2.currentText()
         s1 = self.symbol1.text()
         s2 = self.symbol2.text()
         samples = int(self.s.text())
@@ -249,26 +257,14 @@ class Window(QtGui.QDialog):
         start = self.startdate.text()
         end = self.enddate.text()
         
+        returnSeries1 = c.get_stock_data(market1, s1, start, end, region1, country1, sector1)
+        returnSeries2 = c.get_stock_data(market2, s2, start, end, region2, country2, sector2) 
+
         pltdata = pd.DataFrame()
-        if s1 == "NYSE":
-            f1 = c.get_nyse_stock_data(start, end)
-        elif s1 == "SEHK":
-            f1 = c.get_sehk_stock_data(start, end)
-        elif s1 == "LSE":
-            f1 = c.get_lse_stock_data(start, end)
-        else:
-            f1 = c.get_stock_data(s1,start,end)
-        pltdata[s1] = pd.rolling_mean(f1.Return,samples)
-        if s2 == "NYSE":
-            f2 = c.get_nyse_stock_data(start, end)
-        elif s2 == "SEHK":
-            f2 = c.get_sehk_stock_data(start, end)
-        elif s2 == "LSE":
-            f2 = c.get_lse_stock_data(start, end)
-        else:
-            f2 = c.get_stock_data(s2,start,end)
-        pltdata[s2] = pd.rolling_mean(f2.Return,samples)
-        pltdata['Corr'] = pd.rolling_corr(pltdata[s1], pltdata[s2], covsamples)
+        pltdata["1"] = pd.rolling_mean(returnSeries1,samples)
+        pltdata["2"] = pd.rolling_mean(returnSeries2,samples)
+        pltdata['Corr'] = pd.rolling_corr(pltdata["1"], pltdata["2"], covsamples)
+        
         
 #        if self.useGarch.isChecked():
 #            am = arch_model(pltdata['Corr'][pd.notnull(pltdata['Corr'])], lags=5, mean="ARX")
@@ -294,22 +290,24 @@ class Window(QtGui.QDialog):
         print "T test result:", pscore
         
         if pscore[1] < 0.05:
-            h = HeadlineGrabber()
-            headline = h.get_headline(high_data[0].to_datetime())
-            self.zscore.setText("Contagion found at "+str(high_data[0])+" with P-score " + str(pscore[1]))
-            self.conclusion.setText("Headline for article: "+headline)
+#            h = HeadlineGrabber()
+#            headline = h.get_headline(high_data[0].to_datetime())
+            self.zscore.setText("Contagion found at "+str(high_data[0])+" with P-score " + str(pscore[1]) + "                                                                                                            ")
+#            self.conclusion.setText("Headline for article: "+headline)
         else:
             self.zscore.setText("No contagion found")
-            self.conclusion.setText(" ")
+#            self.conclusion.setText(" ")
         
         pltdata['mean'] = [pltdata['Corr2'].mean()]*len(pltdata['Corr2'])
         pltdata['upperstd'] = [pltdata['Corr2'].mean()+pltdata['Corr2'].std()]*len(pltdata['Corr2'])
         pltdata['lowerstd'] = [pltdata['Corr2'].mean()-pltdata['Corr2'].std()]*len(pltdata['Corr2'])
+        
+        print pltdata
 
         self.axes1.cla()
         self.axes2.cla()
-        pltdata[s1].plot(ax=self.axes1, legend=True)
-        pltdata[s2].plot(ax=self.axes1, legend=True)
+        pltdata["1"].plot(ax=self.axes1, legend=True)
+        pltdata["2"].plot(ax=self.axes1, legend=True)
         pltdata['Corr2'].plot(ax=self.axes2, legend=True)
         pltdata['mean'].plot(ax=self.axes2, legend=True)
         pltdata['upperstd'].plot(ax=self.axes2, legend=True)

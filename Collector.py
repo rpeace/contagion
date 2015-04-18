@@ -24,11 +24,33 @@ class Collector:
             country = ""
         if sector == "(All)":
             sector = ""
+        if exchange == "(All)":
+            exchange = ""
         s = dateparser.parse(start) - timedelta(weeks=1)
         e = dateparser.parse(end)
         cdata = connection.get_stocks(exchange, symbol, s, e, region, country, sector)
-        print cdata
-        f = pd.DataFrame()
+     
+        IDs = list(set([line[0] for line in cdata]))      
+        
+        dates = []
+        for line in cdata:
+            dates.append(datetime.datetime(int(line[3]), int(line[4]), int(line[5])))
+        dates = sorted(list(set(dates)))
+        
+        returns = pd.Series(0.0, dates[1:])
+        
+        dataDict = {}
+        for ID in IDs:
+            dataDict[ID] = []
+            for line in cdata:
+                if line[0] == ID:
+                    dataDict[ID].append(line)
+            for idx, line in enumerate(dataDict[ID]):
+                if idx > 0:
+                    returns[datetime.datetime(int(line[3]), int(line[4]), int(line[5]))] += (float(dataDict[ID][idx][6]) - float(dataDict[ID][idx-1][6])) / float(dataDict[ID][idx][6])                 
+            
+        returns = returns.div(len(IDs))
+        return returns
 #        f['Return'] = pd.Series()
 #        f.Return = (f.Close-f.Close.shift(1))/f.Close
 #        return f[dateparser.parse(start):]
@@ -60,4 +82,4 @@ class Collector:
         
 c = Collector()
 
-c.get_stock_data("NYSE", "AAPL", "2010-01-01", "2010-02-02", "", "", "")
+c.get_stock_data("", "", "2003-01-01", "2003-12-31", "", "United States", "Technology")
